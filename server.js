@@ -5,20 +5,34 @@ require('dotenv').config();
 const express = require('express');
 const { MongoClient } = require('mongodb');
 
-// Create an Express app
+const http = require('http');
+const socketIo = require('socket.io');
+const cors = require('cors');
+
+// For serving static files
+const path = require('path');
+
+// Create an express app
 const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
 const PORT = 3000;
 
-// URI should be connection string
+// Using environment variable for MongoDB URI
 const uri = process.env.MONGO_URI;
 
-// Create a MongoDB client
+// Create a mongoDB client
 const client = new MongoClient(uri);
 
 // Middleware to parse JSON requests
+app.use(cors());
 app.use(express.json());
 
-// Connect to the database
+// Serve static files from the public folder
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Connect to MongoDB
 async function connectToDatabase() {
     try {
         await client.connect();
@@ -29,12 +43,44 @@ async function connectToDatabase() {
 }
 connectToDatabase();
 
+// Socket.IO for real-time messaging
+io.on('connection', (socket) => {
+    console.log('A user connected');
+
+    // When a user sends a message, save it to MongoDB and broadcast it
+    socket.on('sendMessage', async (msg) => {
+        try {
+            const messagesCollection = client.db('poch-chat-db').collection('messages');
+            await messagesCollection.insertOne(msg);  // Save message to DB
+            io.emit('newMessage', msg);  // Emit to all connected users
+        } catch (err) {
+            console.error('Error saving message:', err);
+        }
+    });
+
+    socket.on('disconnect', () => {
+        console.log('User disconnected');
+    });
+});
+
 // Example route to test the server
 app.get('/', (req, res) => {
     res.send('Server is running and poch-chat is poching ...');
 });
 
+// API route to fetch messages
+app.get('/messages', async (req, res) => {
+    try {
+        const messagesCollection = client.db('poch-chat-db').collection('messages');
+        const messages = await messagesCollection.find().toArray(); // Get all messages
+        res.json(messages);
+    } catch (err) {
+        console.error('Error fetching messages:', err);
+        res.status(500).send('Error fetching messages');
+    }
+});
+
 // Start the server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`Server is listening on http://localhost:${PORT}`);
 });

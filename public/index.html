@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>poch chat!</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io('http://localhost:3000');
+
+        // Fetch existing messages from the server
+        async function fetchMessages() {
+            try {
+                const response = await fetch('/messages');
+                const messages = await response.json();
+                const messagesContainer = document.getElementById('messages');
+                messagesContainer.innerHTML = ''; // Clear existing messages
+                messages.forEach((msg) => {
+                    const messageElement = document.createElement('p');
+                    messageElement.textContent = `${msg.user}: ${msg.content}`;
+                    messagesContainer.appendChild(messageElement);
+                });
+            } catch (err) {
+                console.error('Error fetching messages:', err);
+            }
+        }
+
+        // Listen for new messages
+        socket.on('newMessage', (msg) => {
+            const messageElement = document.createElement('p');
+            messageElement.textContent = `${msg.user}: ${msg.content}`;
+            document.getElementById('messages').appendChild(messageElement);
+        });
+
+        // Send a message
+        function sendMessage() {
+            const user = document.getElementById('user').value;
+            const content = document.getElementById('content').value;
+            socket.emit('sendMessage', { user, content });
+        }
+
+        // Fetch messages when the page loads
+        window.onload = fetchMessages;
+    </script>
+</head>
+<body>
+    <div>
+        <input type="text" id="user" placeholder="Your Name" />
+        <input type="text" id="content" placeholder="Message" />
+        <button onclick="sendMessage()">Send Message</button>
+    </div>
+    <div id="messages"></div>
+</body>
+</html>
