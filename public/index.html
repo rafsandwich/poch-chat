@@ -7,7 +7,8 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         // Initialize socket connection
-        const socket = io('http://localhost:3000');
+        //const socket = io('http://localhost:3000');
+        const socket = io('NGROK-URL-HERE!');
 
         document.addEventListener('DOMContentLoaded', () => {
             const token = localStorage.getItem('token');
@@ -104,21 +105,24 @@
             }
         }
 
+        let firstFetchAttempt = true; // Track the first fetch attempt
+
         // Fetch existing messages
         async function fetchMessages() {
             const token = localStorage.getItem('token');
 
             try {
                 const response = await fetch('/messages', {
-                    headers: { 'Authorization': `Bearer ${token}` }, //key name and standard defined in HTTP protocols, must be AuthoriZation
+                    headers: { 'Authorization': `Bearer ${token}` }, // key name and standard defined in HTTP protocols, must be AuthoriZation
                 });
 
                 if (!response.ok) {
                     if (response.status === 401) {
                         alert('Unauthorised: Please log in.');
-                    } else {
+                    } else if (!firstFetchAttempt) {
                         alert('Failed to fetch messages.');
                     }
+                    firstFetchAttempt = false; // alerts will now show
                     return;
                 }
 

@@ -14,6 +14,10 @@ const path = require('path');
 
 // Create an express app
 const app = express();
+
+// for ngrok
+app.set('trust proxy', 1); // trust the first proxy
+
 const server = http.createServer(app);
 const io = socketIo(server);
 
@@ -26,7 +30,15 @@ const uri = process.env.MONGO_URI;
 const client = new MongoClient(uri);
 
 // Middleware to parse JSON requests
-app.use(cors());
+//app.use(cors());
+
+// For testing with ngrok
+app.use(cors({
+    origin: '*', // Allow all origins for testing
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
 // Serve static files from the public folder
