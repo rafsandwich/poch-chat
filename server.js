@@ -22,7 +22,7 @@ const PORT = 3000;
 // Using environment variable for MongoDB URI
 const uri = process.env.MONGO_URI;
 
-// Create a mongoDB client
+// Create a MongoDB client
 const client = new MongoClient(uri);
 
 // Middleware to parse JSON requests
@@ -76,6 +76,19 @@ app.get('/messages', async (req, res) => {
         res.json(messages);
     } catch (err) {
         console.error('Error fetching messages:', err);
+        res.status(500).send('Error fetching messages');
+    }
+});
+
+// Testing getting users messages
+app.get('/messages/:user', async (req, res) => {
+    const { user } = req.params;
+    try {
+        const messagesCollection = client.db('poch-chat-db').collection('messages');
+        const userMessages = await messagesCollection.find({ user }).toArray();
+        res.json(userMessages);
+    } catch (err) {
+        console.error('Error fetching user messages:', err);
         res.status(500).send('Error fetching messages');
     }
 });
