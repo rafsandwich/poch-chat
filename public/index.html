@@ -2,15 +2,57 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>poch chat!</title>
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // Initialize socket connection
         const socket = io('http://localhost:3000');
 
-        // User authentication functions (register, login, fetchMessages)
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('token');
+            const username = localStorage.getItem('username');
+
+            if (username) {
+                document.getElementById('usernameDisplay').textContent = username;
+            }
+
+            if (token) {
+                // Attach token for authentication on connection
+                socket.io.opts.query = { token };
+            }
+
+            // Handle socket connection
+            socket.on('connect', () => {
+                console.log('Connected to Socket.IO server.');
+            });
+
+            // Handle receiving messages
+            socket.on('newMessage', (msg) => {
+                displayMessage(msg.user, msg.content);
+            });
+
+            // Fetch existing messages when the page loads
+            fetchMessages();
+        });
+
+        // Utility function to display a message
+        function displayMessage(user, content) {
+            const messagesContainer = document.getElementById('messages');
+            const messageElement = document.createElement('p');
+            messageElement.textContent = `${user}: ${content}`;
+            messagesContainer.appendChild(messageElement);
+        }
+
+        // Register a new user
         async function register() {
-            const username = document.getElementById('registerUsername').value;
-            const password = document.getElementById('registerPassword').value;
+            const username = document.getElementById('registerUsername').value.trim();
+            const password = document.getElementById('registerPassword').value.trim();
+
+            if (!username || !password) {
+                alert('Please fill in both fields.');
+                return;
+            }
 
             try {
                 const response = await fetch('/register', {
@@ -29,9 +71,16 @@
                 console.error('Error registering:', err);
             }
         }
+
+        // Log in a user
         async function login() {
-            const username = document.getElementById('loginUsername').value;
-            const password = document.getElementById('loginPassword').value;
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+
+            if (!username || !password) {
+                alert('Please fill in both fields.');
+                return;
+            }
 
             try {
                 const response = await fetch('/login', {
@@ -42,9 +91,9 @@
 
                 if (response.ok) {
                     const data = await response.json();
-                    localStorage.setItem('token', data.token); // Save the JWT
-                    localStorage.setItem('username', username); // Save the username
-                    document.getElementById('usernameDisplay').textContent = username; // Update UI
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('username', username);
+                    document.getElementById('usernameDisplay').textContent = username;
                     alert('Login successful!');
                 } else {
                     const error = await response.json();
@@ -54,12 +103,14 @@
                 console.error('Error logging in:', err);
             }
         }
+
+        // Fetch existing messages
         async function fetchMessages() {
-            const token = localStorage.getItem('token'); // Retrieve the JWT
+            const token = localStorage.getItem('token');
 
             try {
                 const response = await fetch('/messages', {
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    headers: { 'Authorization': `Bearer ${token}` }, //key name and standard defined in HTTP protocols, must be AuthoriZation
                 });
 
                 if (!response.ok) {
@@ -74,11 +125,7 @@
                 const messages = await response.json();
                 const messagesContainer = document.getElementById('messages');
                 messagesContainer.innerHTML = ''; // Clear existing messages
-                messages.forEach((msg) => {
-                    const messageElement = document.createElement('p');
-                    messageElement.textContent = `${msg.user}: ${msg.content}`;
-                    messagesContainer.appendChild(messageElement);
-                });
+                messages.forEach((msg) => displayMessage(msg.user, msg.content));
             } catch (err) {
                 console.error('Error fetching messages:', err);
             }
@@ -88,22 +135,21 @@
         function sendMessage() {
             const token = localStorage.getItem('token');
             const username = localStorage.getItem('username');
+            const content = document.getElementById('content').value.trim();
+
             if (!token || !username) {
                 alert('You must log in to send messages.');
                 return;
             }
 
-            const content = document.getElementById('content').value;
-            if (!content.trim()) {
+            if (!content) {
                 alert('Message cannot be empty.');
                 return;
             }
 
             socket.emit('sendMessage', { user: username, content, token });
-            document.getElementById('content').value = ''; // Clear the input
+            document.getElementById('content').value = ''; // Clear input
         }
-        // Fetch messages when the page loads
-        window.onload = fetchMessages;
     </script>
 </head>
 <body>
@@ -120,7 +166,7 @@
         <button onclick="login()">Login</button>
     </div>
     <div>
-        <p id="currentUser">Logged in as: <span id="usernameDisplay"></span></p>
+        <p>Logged in as: <span id="usernameDisplay"></span></p>
         <input type="text" id="content" placeholder="Message" />
         <button onclick="sendMessage()">Send Message</button>
     </div>
