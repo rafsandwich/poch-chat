@@ -7,10 +7,70 @@
     <script>
         const socket = io('http://localhost:3000');
 
-        // Fetch existing messages from the server
-        async function fetchMessages() {
+        // User authentication functions (register, login, fetchMessages)
+        async function register() {
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+
             try {
-                const response = await fetch('/messages');
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                if (response.ok) {
+                    alert('Registration successful! You can now log in.');
+                } else {
+                    const error = await response.json();
+                    alert(`Registration failed: ${error.message}`);
+                }
+            } catch (err) {
+                console.error('Error registering:', err);
+            }
+        }
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('token', data.token); // Save the JWT
+                    localStorage.setItem('username', username); // Save the username
+                    document.getElementById('usernameDisplay').textContent = username; // Update UI
+                    alert('Login successful!');
+                } else {
+                    const error = await response.json();
+                    alert(`Login failed: ${error.message}`);
+                }
+            } catch (err) {
+                console.error('Error logging in:', err);
+            }
+        }
+        async function fetchMessages() {
+            const token = localStorage.getItem('token'); // Retrieve the JWT
+
+            try {
+                const response = await fetch('/messages', {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        alert('Unauthorised: Please log in.');
+                    } else {
+                        alert('Failed to fetch messages.');
+                    }
+                    return;
+                }
+
                 const messages = await response.json();
                 const messagesContainer = document.getElementById('messages');
                 messagesContainer.innerHTML = ''; // Clear existing messages
@@ -24,27 +84,38 @@
             }
         }
 
-        // Listen for new messages
-        socket.on('newMessage', (msg) => {
-            const messageElement = document.createElement('p');
-            messageElement.textContent = `${msg.user}: ${msg.content}`;
-            document.getElementById('messages').appendChild(messageElement);
-        });
-
         // Send a message
         function sendMessage() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('You must log in to send messages.');
+                return;
+            }
+
             const user = document.getElementById('user').value;
             const content = document.getElementById('content').value;
-            socket.emit('sendMessage', { user, content });
-        }
 
+            socket.emit('sendMessage', { content, token });
+        }
         // Fetch messages when the page loads
         window.onload = fetchMessages;
     </script>
 </head>
 <body>
     <div>
-        <input type="text" id="user" placeholder="Your Name" />
+        <h2>Register</h2>
+        <input type="text" id="registerUsername" placeholder="Username" />
+        <input type="password" id="registerPassword" placeholder="Password" />
+        <button onclick="register()">Register</button>
+    </div>
+    <div>
+        <h2>Login</h2>
+        <input type="text" id="loginUsername" placeholder="Username" />
+        <input type="password" id="loginPassword" placeholder="Password" />
+        <button onclick="login()">Login</button>
+    </div>
+    <div>
+        <p id="currentUser">Logged in as: <span id="usernameDisplay"></span></p>
         <input type="text" id="content" placeholder="Message" />
         <button onclick="sendMessage()">Send Message</button>
     </div>
