@@ -123,8 +123,17 @@ app.post('/register', async (req, res) => {
     }
 });
 
+// Brute force attack prevention
+const rateLimit = require('express-rate-limit');
+
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // Limit each IP to 10 login attempts per window
+    message: 'Too many login attempts. Please try again later.',
+});
+
 // Login endpoint
-app.post('/login', async (req, res) => {
+app.post('/login', loginLimiter, async (req, res) => {
     const { username, password } = req.body;
 
     try {
