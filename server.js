@@ -47,12 +47,32 @@ connectToDatabase();
 io.on('connection', (socket) => {
     console.log('A user connected');
 
-    // When a user sends a message, save it to MongoDB and broadcast it
     socket.on('sendMessage', async (msg) => {
         try {
-            const messagesCollection = client.db('poch-chat-db').collection('messages');
-            await messagesCollection.insertOne(msg);  // Save message to DB
-            io.emit('newMessage', msg);  // Emit to all connected users
+            const { token, content, user } = msg;
+
+            // Validate the token
+            jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
+                if (err) {
+                    console.error('Invalid token:', err);
+                    socket.emit('errorMessage', 'Invalid token');
+                    return;
+                }
+
+                // Ensure the username in the token matches the message's user field
+                if (decoded.username !== user) {
+                    console.error('Username mismatch');
+                    return;
+                }
+
+                console.log('Decoded token:', decoded);
+
+                const messagesCollection = client.db('poch-chat-db').collection('messages');
+                const newMessage = { user, content, timestamp: new Date() };
+                await messagesCollection.insertOne(newMessage); // Save message to DB
+
+                io.emit('newMessage', newMessage); // Emit to all connected users
+            });
         } catch (err) {
             console.error('Error saving message:', err);
         }
@@ -168,7 +188,7 @@ app.post('/login', loginLimiter, async (req, res) => {
 function authenticateToken(req, res, next) {
     const token = req.headers['authorization']?.split(' ')[1];
     if (!token) {
-        return res.status(401).json({ message: 'Unauthorized' });
+        return res.status(401).json({ message: 'Unauthorised' });
     }
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
