@@ -23,6 +23,7 @@
             padding: 8px;
             border: none;
             border-radius: 5px;
+            font-size: 16px; /* Prevent mobile zoom */
         }
     
         input {
@@ -40,13 +41,14 @@
         }
     
         #messages {
-            margin-top: 20px;
+            flex-grow: 1;
             padding: 10px;
+            margin-top: 20px;
             border-radius: 5px;
             background-color: #36393f;
             max-height: 400px;
             overflow-y: auto;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
         }
     
         .message {
@@ -67,6 +69,37 @@
         .message-content {
             color: #dcddde;
         }
+        .message-timestamp {
+            font-size: 0.8em;
+            color: #72767d;
+            text-align: right;
+            margin-top: 4px;
+        }
+        #chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+            width: 100%;
+            max-width: 2000px;
+            margin: 0 auto;
+            /* border: solid #7289da; */
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        #input-container {
+            display: flex;
+            padding: 12px;
+            background-color: #40444b;
+            /* border-top: 1px solid #7289da; */
+            max-width: 2000px;
+            border-radius: 5px;
+        }
+
+        #content {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
     </style>    
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -77,6 +110,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const token = localStorage.getItem('token');
             const username = localStorage.getItem('username');
+            const messageInput = document.getElementById('content');
 
             if (username) {
                 document.getElementById('usernameDisplay').textContent = username;
@@ -99,6 +133,14 @@
 
             // Fetch existing messages when the page loads
             fetchMessages();
+
+            // Enter key listener for sending messages
+            messageInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && !event.shiftKey) { // Check for Enter key, shift + enter allows new line
+                    event.preventDefault(); // Prevents new line
+                    sendMessage();
+                }
+            });
         });
 
         // Utility function to display a message
@@ -116,8 +158,14 @@
             contentElement.classList.add('message-content');
             contentElement.textContent = content;
 
+            const timestampElement = document.createElement('div');
+            timestampElement.classList.add('message-timestamp');
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            timestampElement.textContent = timestamp;
+
             messageElement.appendChild(userElement);
             messageElement.appendChild(contentElement);
+            messageElement.appendChild(timestampElement);
             messagesContainer.appendChild(messageElement);
 
             // Auto-scroll to the latest message
@@ -250,9 +298,13 @@
     </div>
     <div>
         <p>Logged in as: <span id="usernameDisplay"></span></p>
-        <input type="text" id="content" placeholder="Message" />
-        <button onclick="sendMessage()">Send Message</button>
     </div>
-    <div id="messages"></div>
+    <div id="chat-container">
+        <div id="messages"></div>
+        <div id="input-container">
+            <input type="text" id="content" placeholder="Message" />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
 </body>
 </html>
